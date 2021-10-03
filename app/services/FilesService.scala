@@ -27,12 +27,16 @@ class FilesService @Inject() (config: Configuration) extends Logging {
 
   def delete(name: String): Boolean = {
     logger.info("FilesService.delete")
-    val path = directoryPath.resolve(name)
-    path.toFile.delete()
+    if (validateName(name)) {
+      val path = directoryPath.resolve(name)
+      path.toFile.delete()
+    }
+    else
+      false
   }
 
   def list(): List[String] = {
     logger.info("FilesService.list")
-    os.list(os.Path(directoryPath)).filter(os.isFile(_)).map(_.toString()).toList
+    os.list(os.Path(directoryPath)).filter(os.isFile(_)).map(_.last).toList
   }
 }

@@ -1,9 +1,6 @@
 package controllers
 
 import play.api.Logging
-import play.api.data.Form
-import play.api.data.Forms._
-import play.api.libs.Files.TemporaryFile
 import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents, _}
 import play.api.mvc.MultipartFormData.{BadPart, FilePart, ParseError}
 import play.core.parsers.Multipart.{FileInfo, FilePartHandler}
@@ -14,12 +11,10 @@ import akka.util.ByteString
 import play.api.libs.streams.Accumulator
 
 import java.io.File
-import java.nio.file.{Files, Path}
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 import play.api.Configuration
-
-import scala.util.Failure
+import play.api.libs.Files.TemporaryFile
 
 case class FileForm(size: Int)
 
@@ -38,33 +33,33 @@ class FilesController @Inject()(cc: ControllerComponents, filesService: FilesSer
   }
 
   def list(): Action[AnyContent] = {
-    Action { Ok }
+    val files = filesService.list().mkString(", ")
+    Action { Ok(files) }
   }
 
-
-  def upload(name: String): Action[MultipartFormData[File]]  =
-    Action(parse.multipartFormData(handleFilePartAsFile)) { implicit request =>
+  def upload(name: String): Action[MultipartFormData[TemporaryFile]]  =
+    Action(parse.multipartFormData) { implicit request =>
         request.body
           .file("upload_file") // key in the post form
-          .map {
-            case FilePart(key, filename, contentType, file, fileSize, dispositionType) =>
-            logger.info(s"key = ${key}, file = $file, filename = ${filename}, " +
-              s"contentType = ${contentType}, " +
-              s"fileSize = ${fileSize}, dispositionType = ${dispositionType}")
-
-           // uploadFile.ref.copyTo(Paths.get(s"/tmp/picture/$filename"), replace = true)
-            //filesService
-            Ok("File uploaded")
+          .map { uploadFile =>
+            filesService.getPath(name).map { path =>
+              logger.info(s"key = ${uploadFile.key}, file = ${name}, filename = ${uploadFile.filename}, " +
+                s"contentType = ${uploadFile.contentType}, " +
+                s"fileSize = ${uploadFile.fileSize}, dispositionType = ${uploadFile.dispositionType}")
+              uploadFile.ref.copyTo(path, replace = true)
+              Ok("File uploaded")
+            }.getOrElse(NotFound)
           }
           .getOrElse {
             NotFound
           }
       }
 
-
-  def delete(name: String): Action[AnyContent] = {
-    Action { Ok }
-  }
-
-
+  def delete(name: String): Action[AnyContent] =
+    Action { implicit request =>
+        if (filesService.delete(name))
+          Ok
+        else
+          NotFound
+    }
 }
