@@ -1,28 +1,38 @@
 package services
 
-import play.api.Logging
-import play.api.libs.Files.TemporaryFile
+import play.api.{Configuration, Logging}
+import java.nio.file.{Files, Path, Paths}
+import javax.inject.{Inject, Singleton}
 
-class FilesService(storeDirectory: os.Path) extends Logging {
+/**
+  * This class provides functions the Files api
+ */
+@Singleton
+class FilesService @Inject() (config: Configuration) extends Logging {
+  private val directoryPath: Path = Paths.get(config.get[String]("sfs.storagePath"))
 
   def validateName(name: String): Boolean = {
     // check the file name has no directories or .. .
-    val path = os.Path(name)
-    path == path.last
+    val path = Paths.get(name)
+    path == path.getFileName
   }
 
-  def getPath(name: String): Option[os.Path]  = {
+  def getPath(name: String): Option[Path]  = {
+    logger.info("FilesService.getPath")
     if (validateName(name))
-      Some(storeDirectory/name)
+      Some(directoryPath.resolve(name))
     else
       None
   }
 
-  def delete(fileName: String): Boolean = {
-    false
+  def delete(name: String): Boolean = {
+    logger.info("FilesService.delete")
+    val path = directoryPath.resolve(name)
+    path.toFile.delete()
   }
 
   def list(): List[String] = {
-    List()
+    logger.info("FilesService.list")
+    os.list(os.Path(directoryPath)).filter(os.isFile(_)).map(_.toString()).toList
   }
 }

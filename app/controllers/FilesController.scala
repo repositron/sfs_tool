@@ -5,7 +5,7 @@ import play.api.data.Form
 import play.api.data.Forms._
 import play.api.libs.Files.TemporaryFile
 import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents, _}
-import play.api.mvc.MultipartFormData.FilePart
+import play.api.mvc.MultipartFormData.{BadPart, FilePart, ParseError}
 import play.core.parsers.Multipart.{FileInfo, FilePartHandler}
 import services.FilesService
 import akka.stream.IOResult
@@ -17,24 +17,23 @@ import java.io.File
 import java.nio.file.{Files, Path}
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
+import play.api.Configuration
+
 import scala.util.Failure
 
 case class FileForm(size: Int)
 
-class FilesController @Inject()(cc: ControllerComponents, filesService: FilesService)(implicit executionContext: ExecutionContext)
+class FilesController @Inject()(cc: ControllerComponents, filesService: FilesService, config: Configuration)(implicit executionContext: ExecutionContext)
   extends AbstractController(cc) with Logging {
-
-  private def handleFilePartAsFile: FilePartHandler[File] = {
+   private def handleFilePartAsFile: FilePartHandler[File] = {
     case FileInfo(partName, filename, contentType, _) =>
-
-      val path: Path = Files.createTempFile("multipartBody", "tempFile")
-      val fileSink: Sink[ByteString, Future[IOResult]] = FileIO.toPath(path)
+      val storePath = filesService.getPath(filename).get
+      val fileSink: Sink[ByteString, Future[IOResult]] = FileIO.toPath(storePath)
       val accumulator: Accumulator[ByteString, IOResult] = Accumulator(fileSink)
       accumulator.map {
-        //case IOResult(_, Failure(error)) => Future.failed(error)
         case IOResult(count, status) =>
           logger.info(s"count = $count, status = $status")
-          FilePart(partName, filename, contentType, path.toFile)
+          FilePart(partName, filename, contentType, storePath.toFile)
       }
   }
 
@@ -42,20 +41,19 @@ class FilesController @Inject()(cc: ControllerComponents, filesService: FilesSer
     Action { Ok }
   }
 
-  def upload(name: String): Action[MultipartFormData[TemporaryFile]]  = Action(parse.multipartFormData) {
-    request =>
+
+  def upload(name: String): Action[MultipartFormData[File]]  =
+    Action(parse.multipartFormData(handleFilePartAsFile)) { implicit request =>
         request.body
           .file("upload_file") // key in the post form
-          .map { uploadFile =>
-            val filename = uploadFile.filename
-            val fileSize = uploadFile.fileSize
-            val contentType = uploadFile.contentType
-            logger.info(s"key = ${uploadFile.key}, filename = ${filename}, " +
-              s"contentType = ${uploadFile.contentType}, " +
-              s"fileSize = ${uploadFile.fileSize}, dispositionType = ${uploadFile.dispositionType}")
+          .map {
+            case FilePart(key, filename, contentType, file, fileSize, dispositionType) =>
+            logger.info(s"key = ${key}, file = $file, filename = ${filename}, " +
+              s"contentType = ${contentType}, " +
+              s"fileSize = ${fileSize}, dispositionType = ${dispositionType}")
 
            // uploadFile.ref.copyTo(Paths.get(s"/tmp/picture/$filename"), replace = true)
-            filesService
+            //filesService
             Ok("File uploaded")
           }
           .getOrElse {
