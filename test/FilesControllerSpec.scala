@@ -2,23 +2,61 @@ import play.api.test.Injecting
 
 import java.io._
 import java.nio.file.Files
-
 import akka.stream.scaladsl._
 import akka.util.ByteString
+import org.scalactic.StringNormalizations._
+import org.scalactic.Explicitly._
 import org.scalatestplus.play._
 import org.scalatestplus.play.guice.GuiceOneServerPerSuite
+import play.api.Configuration
 import play.api.libs.ws.WSClient
 import play.api.mvc._
 import play.api.test.Helpers._
+import org.scalatest.matchers.should.Matchers._
 import play.api.test._
 
 class FilesControllerSpec extends PlaySpec with GuiceOneServerPerSuite with Injecting {
   val baseUrl = s"http://localhost:${port}/files"
   "FileController" must {
     "upload a file successfully" in {
+      cleanStorageDirectory()
       val response = uploadFile("testFile")
-      response mustBe OK
+      response.status mustBe OK
+      deleteFile("testFile")
     }
+  }
+
+  "FileController" must {
+    "delete a file successfully" in {
+      cleanStorageDirectory()
+      val response = uploadFile("testFileforDelete")
+      response.status mustBe OK
+
+      val deleteResponse = deleteFile("testFileforDelete")
+      deleteResponse.status mustBe OK
+    }
+  }
+
+  "FileController" must {
+    "list all files uploaded" in {
+      cleanStorageDirectory()
+      uploadFile("testFileforList1").status mustBe OK
+
+      uploadFile("testFileforList2").status mustBe OK
+
+      val listResponse = await(inject[WSClient].url(baseUrl).get())
+
+      listResponse.status mustBe OK
+      val listedFiles = listResponse.body.split(",").map(_.trim).toSet
+      (listedFiles should contain ("testFileforList1"))
+      (listedFiles should contain ("testFileforList2"))
+
+    }
+  }
+
+  def cleanStorageDirectory(): Unit = {
+    val listResponse = await(inject[WSClient].url(baseUrl).get())
+    listResponse.body.split(",").map(_.trim).foreach(deleteFile(_))
   }
 
   def deleteFile(name: String) = {
@@ -32,7 +70,6 @@ class FilesControllerSpec extends PlaySpec with GuiceOneServerPerSuite with Inje
     tmpFile.deleteOnExit()
     val msg = "hello world"
     Files.write(tmpFile.toPath, msg.getBytes())
-    val name = "testfile"
     val url = baseUrl + "/" + name
     val responseFuture = inject[WSClient].url(url).post(postSource(tmpFile, name))
     await(responseFuture)

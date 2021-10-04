@@ -7,19 +7,25 @@ def urljoin(*args):
     trailing_slash = '/' if args[-1].endswith('/') else ''
     return "/".join([str(x).strip("/") for x in args]) + trailing_slash
 
-def build_url(base_url):
-    url =  urljoin(base_url, 'files', args.filename)
+def build_url(base_url, filename):
+    url =  urljoin(base_url, 'files', filename)
     print(url)
     return url
 
 def upload(args):
-    files = {'upload_file': open(args.path, 'rb')}
-    r = requests.post(build_url(args.url), files=files)
-    print(r.status_code)
+    fileToUpload = {'upload_file': open(args.path, 'rb')}
+    r = requests.post(build_url(args.url, args.filename), files=fileToUpload)
+    if r.status_code == 200:
+        print('file uploaded as {args.filename}')
+    else:
+        print(f'failed: {r.status_code}')    
 
 def delete(args):
     r = requests.delete(build_url(args.url))
-    print(r.status_code)
+    if r.status_code == 200:
+        print('file {args.filename} deleted')
+    else:
+        print(f'failed: {r.status_code}') 
 
 def list_files(args):
     r = requests.get(urljoin(args.url, 'files'))
