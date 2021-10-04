@@ -1,7 +1,5 @@
-import sys
 import argparse
 import requests
-import urllib
 
 def urljoin(*args):
     trailing_slash = '/' if args[-1].endswith('/') else ''
@@ -16,20 +14,20 @@ def upload(args):
     fileToUpload = {'upload_file': open(args.path, 'rb')}
     r = requests.post(build_url(args.url, args.filename), files=fileToUpload)
     if r.status_code == 200:
-        print('file uploaded as {args.filename}')
+        print(f'file uploaded as {args.filename}')
     else:
         print(f'failed: {r.status_code}')    
 
 def delete(args):
-    r = requests.delete(build_url(args.url))
+    r = requests.delete(build_url(args.url, args.filename))
     if r.status_code == 200:
-        print('file {args.filename} deleted')
+        print(f'file {args.filename} deleted')
     else:
         print(f'failed: {r.status_code}') 
 
 def list_files(args):
     r = requests.get(urljoin(args.url, 'files'))
-    print(r.content)
+    print(r.text)
     return r
 
 if __name__ == "__main__":

@@ -4,16 +4,12 @@ import java.io._
 import java.nio.file.Files
 import akka.stream.scaladsl._
 import akka.util.ByteString
-import org.scalactic.StringNormalizations._
-import org.scalactic.Explicitly._
 import org.scalatestplus.play._
 import org.scalatestplus.play.guice.GuiceOneServerPerSuite
-import play.api.Configuration
 import play.api.libs.ws.WSClient
 import play.api.mvc._
 import play.api.test.Helpers._
 import org.scalatest.matchers.should.Matchers._
-import play.api.test._
 
 class FilesControllerSpec extends PlaySpec with GuiceOneServerPerSuite with Injecting {
   val baseUrl = s"http://localhost:${port}/files"
@@ -51,6 +47,26 @@ class FilesControllerSpec extends PlaySpec with GuiceOneServerPerSuite with Inje
       (listedFiles should contain ("testFileforList1"))
       (listedFiles should contain ("testFileforList2"))
 
+    }
+  }
+
+  "FileController" must {
+    "return an error if the file is already uploaded" in {
+      cleanStorageDirectory()
+      uploadFile("testFileforList1").status mustBe OK
+
+      uploadFile("testFileforList1").status mustBe UNPROCESSABLE_ENTITY
+
+    }
+  }
+
+  "FileController" must {
+    "return an error if the file name is a relative path" in {
+      cleanStorageDirectory()
+      val response = uploadFile("../abcd")
+      println(response.body)
+      // this transaction is actually prevented by the routing table.
+      response.status must not be (OK)
     }
   }
 

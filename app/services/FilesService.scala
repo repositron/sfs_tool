@@ -27,6 +27,10 @@ class FilesService @Inject() (config: Configuration) extends Logging {
       None
   }
 
+  def doesFileExist(name: String): Boolean = {
+    getPath(name).map(_.toFile.exists()).getOrElse(false)
+  }
+
   def delete(name: String): Boolean = {
     logger.info("FilesService.delete")
     if (validateName(name)) {

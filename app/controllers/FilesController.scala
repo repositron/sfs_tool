@@ -20,21 +20,24 @@ class FilesController @Inject()(cc: ControllerComponents, filesService: FilesSer
 
   def upload(name: String): Action[MultipartFormData[TemporaryFile]]  =
     Action(parse.multipartFormData) { implicit request =>
-        request.body
-          .file("upload_file") // key in the post form
-          .map { uploadFile =>
-            filesService.getPath(name).map { path =>
-              logger.info(s"key = ${uploadFile.key}, file = ${name}, filename = ${uploadFile.filename}, " +
-                s"contentType = ${uploadFile.contentType}, " +
-                s"fileSize = ${uploadFile.fileSize}, dispositionType = ${uploadFile.dispositionType}")
+      request.body
+        .file("upload_file") // key in the post form
+        .map { uploadFile =>
+          filesService.getPath(name).map { path =>
+            logger.info(s"key = ${uploadFile.key}, file = ${name}, filename = ${uploadFile.filename}, " +
+              s"contentType = ${uploadFile.contentType}, " +
+              s"fileSize = ${uploadFile.fileSize}, dispositionType = ${uploadFile.dispositionType}")
+            if (!filesService.doesFileExist(name)) {
               uploadFile.ref.copyTo(path, replace = true)
               Ok("File uploaded")
-            }.getOrElse(NotFound)
-          }
-          .getOrElse {
-            NotFound
-          }
-      }
+            }
+            else
+              UnprocessableEntity("file already exists")
+          }.getOrElse(UnprocessableEntity(s"filename $name is invalid"))
+        }.getOrElse {
+          NotFound
+        }
+    }
 
   def delete(name: String): Action[AnyContent] =
     Action { implicit request =>
