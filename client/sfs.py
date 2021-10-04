@@ -27,9 +27,12 @@ def delete(args):
 
 def list_files(args):
     r = requests.get(urljoin(args.url, 'files'))
-    print(r.text)
-    return r
-
+    if r.text and not r.text.isspace():
+        print(r.text)
+    else:
+        print("there are no files.")
+        
+    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("simple file storage client")
     subparsers = parser.add_subparsers(help='sub-command help')

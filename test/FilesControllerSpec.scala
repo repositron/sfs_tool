@@ -64,8 +64,8 @@ class FilesControllerSpec extends PlaySpec with GuiceOneServerPerSuite with Inje
     "return an error if the file name is a relative path" in {
       cleanStorageDirectory()
       val response = uploadFile("../abcd")
-      println(response.body)
-      // this transaction is actually prevented by the routing table.
+      //println(response.body)
+      // this request is actually prevented by Play's routing mechanism.
       response.status must not be (OK)
     }
   }
