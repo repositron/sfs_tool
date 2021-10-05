@@ -1,0 +1,10 @@
+
+# Routes
+# This file defines all application routes (Higher priority routes first)
+# ~~~~
+
+GET /files                          controllers.FilesController.list()
+POST /files/:name                   controllers.FilesController.upload(name: String)
+DELETE /files/:name                 controllers.FilesController.delete(name: String)
+
+      
